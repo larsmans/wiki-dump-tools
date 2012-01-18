@@ -1,0 +1,4 @@
+*.pyc
+
+# Vim stuff
+.*.sw[op]
