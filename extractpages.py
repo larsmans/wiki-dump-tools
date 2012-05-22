@@ -1,7 +1,11 @@
 from lxml import etree
 
-NS = {"w": "http://www.mediawiki.org/xml/export-0.5/"}
-PAGE_TAG = "{%s}page" % NS["w"]
+_NS = {"w": "http://www.mediawiki.org/xml/export-0.6/"}
+_PAGE_TAG = "{%s}page" % _NS["w"]
+
+
+def _xpath(et, expr):
+    return et.xpath(expr, namespaces=_NS)
 
 
 def extract_pages(f):
@@ -13,11 +17,10 @@ def extract_pages(f):
         Generates (page_id, title, content) triples.
     """
     for event, elem in etree.iterparse(f, events=["end"]):
-        if elem.tag == PAGE_TAG:
-            text = elem.xpath("./w:revision/w:text", namespaces=NS)[0].text \
-                    or ""   # may be None
-            yield (int(elem.xpath("./w:id", namespaces=NS)[0].text),
-                   elem.xpath("./w:title", namespaces=NS)[0].text,
+        if elem.tag == _PAGE_TAG:
+            text = _xpath(elem, "string(./w:revision/w:text)")
+            yield (int(_xpath(elem, "string(./w:id)")),
+                   _xpath(elem, "string(./w:title)"),
                    text)
 
             # http://www.ibm.com/developerworks/xml/library/x-hiperfparse/

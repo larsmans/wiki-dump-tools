@@ -1,4 +1,10 @@
 *.pyc
 
+# MediaWiki dumps
+*.bz2
+*.gz
+*.sql
+*.xml
+
 # Vim stuff
 .*.sw[op]
