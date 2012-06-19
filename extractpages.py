@@ -11,6 +11,12 @@ def _xpath(et, expr):
 def extract_pages(f):
     """Extract pages from Wikimedia database dump.
 
+    Parameters
+    ----------
+    f : file-like or str
+        (Path to) a file containing a page dump in XML format; e.g.
+        <lang>wiki-<data>-pages-articles.xml.
+
     Returns
     -------
     pages : iterable over (int, str, str)
