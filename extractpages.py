@@ -1,45 +1,67 @@
-from lxml import etree
+try:
+    from lxml import etree
+except ImportError:
+    import xml.etree.ElementTree as etree
+import re
 
-_NS = {"w": "http://www.mediawiki.org/xml/export-0.6/"}
-_PAGE_TAG = "{%s}page" % _NS["w"]
 
-
-def _xpath(et, expr):
-    return et.xpath(expr, namespaces=_NS)
+def _get_namespace(tag):
+    namespace = re.match("^{(.*?)}", tag).group(1)
+    if not namespace.startswith("http://www.mediawiki.org/xml/export-"):
+        raise ValueError("%s not recognized as MediaWiki database dump"
+                         % namespace)
+    return namespace
 
 
 def extract_pages(f):
     """Extract pages from Wikimedia database dump.
-
-    Parameters
-    ----------
-    f : file-like or str
-        (Path to) a file containing a page dump in XML format; e.g.
-        <lang>wiki-<data>-pages-articles.xml.
 
     Returns
     -------
     pages : iterable over (int, str, str)
         Generates (page_id, title, content) triples.
     """
-    for event, elem in etree.iterparse(f, events=["end"]):
-        if elem.tag == _PAGE_TAG:
-            text = _xpath(elem, "string(./w:revision/w:text)")
-            yield (int(_xpath(elem, "string(./w:id)")),
-                   _xpath(elem, "string(./w:title)"),
-                   text)
+    elems = (elem for _, elem in etree.iterparse(f, events=["end"]))
 
+    # We can't rely on the namespace for database dumps, since it's changed
+    # it every time a small modification to the format is made. So, determine
+    # those from the first element we find, which will be part of the metadata,
+    # and construct element paths.
+    elem = next(elems)
+    namespace = _get_namespace(elem.tag)
+    ns_mapping = {"ns": namespace}
+    page_tag = "{%(ns)s}page" % ns_mapping
+    text_path = "./{%(ns)s}revision/{%(ns)s}text" % ns_mapping
+    id_path = "./{%(ns)s}id" % ns_mapping
+    title_path = "./{%(ns)s}title" % ns_mapping
+
+    for elem in elems:
+        if elem.tag == page_tag:
+            yield (int(elem.find(id_path).text),
+                   elem.find(title_path).text,
+                   elem.find(text_path).text)
+
+            # Prune the element tree, as per
             # http://www.ibm.com/developerworks/xml/library/x-hiperfparse/
             # We do this only for <page>s, since we need to inspect the
             # ./revision/text element. That shouldn't matter since the pages
             # comprise the bulk of the file.
             elem.clear()
-            while elem.getprevious() is not None:
-                del elem.getparent()[0]
+            if hasattr(elem, "getprevious"):
+                # LXML only: unlink elem from its parent
+                while elem.getprevious() is not None:
+                    del elem.getparent()[0]
 
 
 if __name__ == "__main__":
+    # Test; will write article info + prefix of content to stdout
     import sys
 
+    if len(sys.argv) > 1:
+        print("usage: %s; will read from standard input" % sys.argv[0])
+        sys.exit(1)
+
     for pageid, title, text in extract_pages(sys.stdin):
-        print("%d '%s' (%s)" % (pageid, title, text[:40].replace("\n", "_")))
+        title = title.encode("utf-8")
+        text = text[:40].replace("\n", "_").encode("utf-8")
+        print("%d '%s' (%s)" % (pageid, title, text))
