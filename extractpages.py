@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 try:
     from lxml import etree
 except ImportError:
@@ -16,10 +18,17 @@ def _get_namespace(tag):
 def extract_pages(f):
     """Extract pages from Wikimedia database dump.
 
+    Parameters
+    ----------
+    f : file-like or str
+        Handle on Wikimedia article dump. May be any type supported by
+        etree.iterparse.
+
     Returns
     -------
-    pages : iterable over (int, str, str)
+    pages : iterable over (int, string, string)
         Generates (page_id, title, content) triples.
+        In Python 2.x, may produce either str or unicode strings.
     """
     elems = (elem for _, elem in etree.iterparse(f, events=["end"]))
 
@@ -37,9 +46,12 @@ def extract_pages(f):
 
     for elem in elems:
         if elem.tag == page_tag:
+            text = elem.find(text_path).text
+            if text is None:
+                continue
             yield (int(elem.find(id_path).text),
                    elem.find(title_path).text,
-                   elem.find(text_path).text)
+                   text)
 
             # Prune the element tree, as per
             # http://www.ibm.com/developerworks/xml/library/x-hiperfparse/
@@ -58,7 +70,8 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) > 1:
-        print("usage: %s; will read from standard input" % sys.argv[0])
+        print("usage: %s; will read from standard input" % sys.argv[0],
+              file=sys.stderr)
         sys.exit(1)
 
     for pageid, title, text in extract_pages(sys.stdin):

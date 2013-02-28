@@ -3,7 +3,7 @@
 import re
 
 # Media and categories; the codes for these differ per language.
-# We have of the popular ones (>900.000 articles as of July 2012) here,
+# We have the most popular ones (>900.000 articles as of July 2012) here,
 # as well as Latin, which is useful for testing.
 # Add other languages as required.
 _MEDIA_CAT = """
